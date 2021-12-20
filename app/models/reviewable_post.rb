@@ -8,7 +8,7 @@ class ReviewablePost < Reviewable
   def self.queue_for_review_if_possible(post, created_or_edited_by)
     return unless SiteSetting.review_every_post
     return if post.post_type != Post.types[:regular] || post.topic.private_message?
-    return if Reviewable.where(target: post, status: Reviewable.statuses[:pending]).exists?
+    return if Reviewable.pending.where(target: post).exists?
     return if created_or_edited_by.bot? || created_or_edited_by.staff? || created_or_edited_by.has_trust_level?(TrustLevel[4])
     system_user = Discourse.system_user
 
