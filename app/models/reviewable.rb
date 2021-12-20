@@ -33,6 +33,12 @@ class Reviewable < ActiveRecord::Base
     deleted: 4
   }
 
+  enum priority: {
+    low: 0,
+    medium: 5,
+    high: 10
+  }, _scopes: false
+
   after_create do
     log_history(:created, created_by)
   end
@@ -48,15 +54,6 @@ class Reviewable < ActiveRecord::Base
   # Can be used if several actions are equivalent
   def self.action_aliases
     {}
-  end
-
-  # The gaps are in case we want more precision in the future
-  def self.priorities
-    @priorities ||= Enum.new(
-      low: 0,
-      medium: 5,
-      high: 10
-    )
   end
 
   # The gaps are in case we want more precision in the future
@@ -218,7 +215,7 @@ class Reviewable < ActiveRecord::Base
 
   def self.set_priorities(values)
     values.each do |k, v|
-      id = Reviewable.priorities[k]
+      id = priorities[k]
       PluginStore.set('reviewables', "priority_#{id}", v) unless id.nil?
     end
   end
@@ -228,7 +225,7 @@ class Reviewable < ActiveRecord::Base
 
     ratio = sensitivity / Reviewable.sensitivity[:low].to_f
     high = (
-      PluginStore.get('reviewables', "priority_#{Reviewable.priorities[:high]}") ||
+      PluginStore.get('reviewables', "priority_#{priorities[:high]}") ||
       typical_sensitivity
     ).to_f
 
@@ -257,7 +254,7 @@ class Reviewable < ActiveRecord::Base
 
   def self.min_score_for_priority(priority = nil)
     priority ||= SiteSetting.reviewable_default_visibility
-    id = Reviewable.priorities[priority.to_sym]
+    id = priorities[priority]
     return 0.0 if id.nil?
     PluginStore.get('reviewables', "priority_#{id}").to_f
   end
