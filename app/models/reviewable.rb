@@ -32,12 +32,17 @@ class Reviewable < ActiveRecord::Base
     ignored: 3,
     deleted: 4
   }
-
   enum priority: {
     low: 0,
     medium: 5,
     high: 10
-  }, _scopes: false
+  }, _scopes: false, _suffix: true
+  enum sensitivity: {
+    disabled: 0,
+    low: 9,
+    medium: 6,
+    high: 3
+  }, _scopes: false, _suffix: true
 
   after_create do
     log_history(:created, created_by)
@@ -54,16 +59,6 @@ class Reviewable < ActiveRecord::Base
   # Can be used if several actions are equivalent
   def self.action_aliases
     {}
-  end
-
-  # The gaps are in case we want more precision in the future
-  def self.sensitivity
-    @sensitivity ||= Enum.new(
-      disabled: 0,
-      low: 9,
-      medium: 6,
-      high: 3
-    )
   end
 
   # This number comes from looking at forums in the wild and what numbers work.
@@ -223,7 +218,7 @@ class Reviewable < ActiveRecord::Base
   def self.sensitivity_score_value(sensitivity, scale)
     return Float::MAX if sensitivity == 0
 
-    ratio = sensitivity / Reviewable.sensitivity[:low].to_f
+    ratio = sensitivity / sensitivities[:low].to_f
     high = (
       PluginStore.get('reviewables', "priority_#{priorities[:high]}") ||
       typical_sensitivity
@@ -489,7 +484,7 @@ class Reviewable < ActiveRecord::Base
       )
     end
 
-    min_score = Reviewable.min_score_for_priority(priority)
+    min_score = min_score_for_priority(priority)
 
     if min_score > 0 && status == :pending
       result = result.where("reviewables.score >= ? OR reviewables.force_review", min_score)
